@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://itsukiaida.github.io/just-3-seconds/sitemap.xml

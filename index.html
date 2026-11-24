@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>3秒ジャストゲーム｜「すたーと！」から3秒ぴったりを狙うゲーム</title>
+<meta name="description" content="合図の「すたーと！」から、ちょうど3秒でもう一度ボタンを押すだけ。誤差は1/100秒単位で判定し、3回勝負の合計点を競います。スマホでも遊べる無料ブラウザゲームです。">
+<meta property="og:title" content="3秒ジャストゲーム">
+<meta property="og:description" content="「すたーと！」から3秒ぴったりを狙え！誤差1/100秒判定・3回勝負のシンプルゲーム。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://itsukiaida.github.io/just-3-seconds/">
+<meta property="og:image" content="https://itsukiaida.github.io/just-3-seconds/ogp_20261124.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow-x: hidden; }
+  body {
+    font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+    background:
+      radial-gradient(ellipse 120% 55% at 50% -5%, rgba(255, 215, 90, 0.20), rgba(0,0,0,0) 60%),
+      radial-gradient(ellipse 90% 60% at 50% 115%, rgba(120, 30, 60, 0.35), rgba(0,0,0,0) 60%),
+      linear-gradient(180deg, #0a0618 0%, #120a2a 45%, #07040f 100%);
+    color: #f7efdc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100dvh;
+    padding: 10px 10px 12px;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    position: relative;
+  }
+  /* スポットライト */
+  .beam {
+    position: fixed; top: -12vh; width: 34vmax; height: 90vmax;
+    background: conic-gradient(from 168deg at 50% 0%, rgba(0,0,0,0) 0deg, rgba(255,225,140,0.13) 12deg, rgba(0,0,0,0) 24deg);
+    pointer-events: none; z-index: 0;
+    transform-origin: 50% 0%;
+  }
+  .beam.left { left: -6vmax; animation: swayL 9s ease-in-out infinite alternate; }
+  .beam.right { right: -6vmax; animation: swayR 11s ease-in-out infinite alternate; }
+  @keyframes swayL { from { transform: rotate(-7deg); } to { transform: rotate(9deg); } }
+  @keyframes swayR { from { transform: rotate(7deg); } to { transform: rotate(-9deg); } }
+  /* 漂うキラキラ */
+  #sparkles { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  #sparkles span {
+    position: absolute; color: #ffe98a; opacity: 0;
+    animation: twinkle ease-in-out infinite;
+    text-shadow: 0 0 8px rgba(255, 220, 110, 0.9);
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0; transform: translateY(0) scale(0.6) rotate(0deg); }
+    50% { opacity: 0.85; transform: translateY(-16px) scale(1.15) rotate(40deg); }
+  }
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+
+  header { text-align: center; z-index: 2; margin-bottom: 2px; }
+  h1 {
+    font-size: 25px; font-weight: 900; letter-spacing: 0.04em; line-height: 1.2;
+    background: linear-gradient(175deg, #fffbe8 5%, #ffe98a 30%, #f5b301 55%, #fff0b3 78%, #c98400 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 2px 6px rgba(245, 179, 1, 0.45));
+  }
+  .subtitle {
+    font-size: 11px; letter-spacing: 0.55em; color: #d9b45c; text-indent: 0.55em;
+    margin-top: 2px; font-weight: bold;
+  }
+  #roundInfo {
+    font-size: 14px; color: #e8cf8f; min-height: 20px; margin: 4px 0 6px; z-index: 2;
+    letter-spacing: 0.12em; font-weight: bold;
+    text-shadow: 0 0 10px rgba(245, 179, 1, 0.35);
+  }
+
+  /* ステージ（マーキーライトの額縁） */
+  .frame {
+    z-index: 2; width: 100%; max-width: 540px; flex: 1 1 auto; min-height: 0;
+    display: flex; flex-direction: column;
+    background: linear-gradient(180deg, rgba(30, 18, 54, 0.85), rgba(14, 8, 30, 0.9));
+    border: 2px solid rgba(245, 197, 66, 0.55);
+    border-radius: 20px;
+    box-shadow: 0 0 0 4px rgba(60, 40, 8, 0.6), 0 0 42px rgba(245, 179, 1, 0.22), inset 0 0 60px rgba(0,0,0,0.55);
+    padding: 8px 6px;
+  }
+  .bulbs { display: flex; justify-content: space-between; padding: 2px 4px; }
+  .bulbs i {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #6b5518;
+    animation: bulbGlow 1.1s ease-in-out infinite;
+  }
+  .bulbs i:nth-child(even) { animation-delay: 0.55s; }
+  @keyframes bulbGlow {
+    0%, 100% { background: #6b5518; box-shadow: none; }
+    50% { background: #ffe98a; box-shadow: 0 0 10px 3px rgba(255, 225, 130, 0.75); }
+  }
+  #stage {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; gap: 8px; padding: 8px 4px;
+  }
+  #mainText {
+    font-size: 30px; font-weight: 900; line-height: 1.3; color: #fdf6e0;
+    text-shadow: 0 2px 14px rgba(0,0,0,0.6);
+  }
+  #mainText.cue {
+    font-size: clamp(42px, 12.5vw, 68px);
+    background: linear-gradient(175deg, #fffbe8 5%, #ffe98a 35%, #f5b301 60%, #fff0b3 85%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 18px rgba(255, 205, 60, 0.65));
+    letter-spacing: 0.02em;
+  }
+  #mainText.result {
+    font-size: clamp(46px, 15vw, 76px); color: #8df0b2;
+    text-shadow: 0 0 24px rgba(80, 230, 150, 0.55), 0 3px 0 rgba(10, 60, 35, 0.8);
+    font-variant-numeric: tabular-nums;
+  }
+  #mainText.flying { font-size: clamp(36px, 10.5vw, 54px); color: #ff9a86; text-shadow: 0 0 20px rgba(255, 90, 60, 0.5); }
+  #subText { font-size: 15px; color: #e6d9b8; line-height: 1.5; min-height: 24px; }
+  #scoreText {
+    display: inline-block; min-height: 0; font-size: 29px; font-weight: 900;
+    color: #ffe98a;
+  }
+  #scoreText.stamp {
+    border: 3px solid #f5b301; border-radius: 12px; padding: 2px 18px 4px;
+    background: rgba(50, 32, 0, 0.55);
+    box-shadow: 0 0 22px rgba(245, 179, 1, 0.45), inset 0 0 14px rgba(245, 179, 1, 0.25);
+    transform: rotate(-4deg);
+    text-shadow: 0 0 12px rgba(255, 215, 90, 0.7);
+  }
+
+  /* 黄金のブザーボタン */
+  .pedestal {
+    z-index: 2; display: flex; flex-direction: column; align-items: center;
+    margin-top: 8px;
+  }
+  #bigBtn {
+    position: relative;
+    width: min(72vw, 300px, 34dvh); height: min(72vw, 300px, 34dvh);
+    border-radius: 50%;
+    border: 6px solid #8a6508;
+    font-size: 32px; font-weight: 900; letter-spacing: 0.04em;
+    color: #4a2f00;
+    background:
+      radial-gradient(circle at 32% 26%, rgba(255,255,255,0.85), rgba(255,255,255,0) 42%),
+      radial-gradient(circle at 50% 45%, #fff3b0 0%, #ffd94d 38%, #f5b301 68%, #c98400 100%);
+    box-shadow:
+      0 10px 0 #7a5606, 0 20px 38px rgba(0,0,0,0.6),
+      0 0 55px rgba(255, 205, 60, 0.5),
+      inset 0 -14px 26px rgba(120, 70, 0, 0.45), inset 0 10px 18px rgba(255,255,255,0.5);
+    cursor: pointer; touch-action: manipulation;
+    animation: btnGlow 2.2s ease-in-out infinite;
+  }
+  @keyframes btnGlow {
+    0%, 100% { box-shadow: 0 10px 0 #7a5606, 0 20px 38px rgba(0,0,0,0.6), 0 0 38px rgba(255,205,60,0.35), inset 0 -14px 26px rgba(120,70,0,0.45), inset 0 10px 18px rgba(255,255,255,0.5); }
+    50% { box-shadow: 0 10px 0 #7a5606, 0 20px 38px rgba(0,0,0,0.6), 0 0 72px rgba(255,205,60,0.65), inset 0 -14px 26px rgba(120,70,0,0.45), inset 0 10px 18px rgba(255,255,255,0.5); }
+  }
+  #bigBtn:active { transform: translateY(6px); animation: none; box-shadow: 0 4px 0 #7a5606, 0 10px 22px rgba(0,0,0,0.6), 0 0 30px rgba(255,205,60,0.4), inset 0 -8px 18px rgba(120,70,0,0.5), inset 0 6px 12px rgba(255,255,255,0.4); }
+  #bigBtn.stop {
+    color: #fff;
+    border-color: #7c0f22;
+    background:
+      radial-gradient(circle at 32% 26%, rgba(255,255,255,0.8), rgba(255,255,255,0) 42%),
+      radial-gradient(circle at 50% 45%, #ffb59d 0%, #ff6b57 40%, #e0233c 72%, #8f0f26 100%);
+    box-shadow: 0 10px 0 #6d0a1c, 0 20px 38px rgba(0,0,0,0.6), 0 0 60px rgba(255, 60, 80, 0.55), inset 0 -14px 26px rgba(90, 0, 20, 0.5), inset 0 10px 18px rgba(255,255,255,0.45);
+    animation: none;
+  }
+  #bigBtn.stop:active { box-shadow: 0 4px 0 #6d0a1c, 0 10px 22px rgba(0,0,0,0.6), 0 0 34px rgba(255,60,80,0.5), inset 0 -8px 18px rgba(90,0,20,0.5), inset 0 6px 12px rgba(255,255,255,0.35); }
+  #bigBtn.waiting {
+    color: #cfd9e6; border-color: #3c4c61;
+    background:
+      radial-gradient(circle at 32% 26%, rgba(255,255,255,0.5), rgba(255,255,255,0) 42%),
+      radial-gradient(circle at 50% 45%, #aebdcf 0%, #7186a0 45%, #46586e 75%, #2c3a4c 100%);
+    box-shadow: 0 10px 0 #26313f, 0 20px 38px rgba(0,0,0,0.6), 0 0 24px rgba(140,170,210,0.3), inset 0 -14px 26px rgba(10,20,35,0.5), inset 0 10px 18px rgba(255,255,255,0.35);
+    animation: none;
+  }
+  #bigBtn.next {
+    color: #053d22; border-color: #1d7a49;
+    background:
+      radial-gradient(circle at 32% 26%, rgba(255,255,255,0.8), rgba(255,255,255,0) 42%),
+      radial-gradient(circle at 50% 45%, #d2ffe4 0%, #7ee2a8 42%, #2fbf71 72%, #177a45 100%);
+    box-shadow: 0 10px 0 #125c33, 0 20px 38px rgba(0,0,0,0.6), 0 0 55px rgba(80, 230, 150, 0.5), inset 0 -14px 26px rgba(0, 70, 35, 0.45), inset 0 10px 18px rgba(255,255,255,0.5);
+    animation: none;
+  }
+  #bigBtn.next:active { box-shadow: 0 4px 0 #125c33, 0 10px 22px rgba(0,0,0,0.6), 0 0 30px rgba(80,230,150,0.4), inset 0 -8px 18px rgba(0,70,35,0.5), inset 0 6px 12px rgba(255,255,255,0.4); }
+  .pedestalBase {
+    width: min(60vw, 240px); height: 12px; margin-top: 8px; border-radius: 50%;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0.65), rgba(0,0,0,0) 70%);
+  }
+
+  #history {
+    z-index: 2; width: 100%; max-width: 540px;
+    font-size: 14px; color: #cbbd93; line-height: 1.55; text-align: center;
+    min-height: 22px; margin-top: 6px; letter-spacing: 0.03em;
+  }
+  #final {
+    z-index: 2; width: 100%; max-width: 540px;
+    text-align: center; font-size: 18px; line-height: 1.6;
+    background: linear-gradient(180deg, rgba(66, 44, 4, 0.75), rgba(30, 20, 2, 0.85));
+    border: 2px solid #f5b301; border-radius: 16px;
+    box-shadow: 0 0 34px rgba(245, 179, 1, 0.4), inset 0 0 30px rgba(245, 179, 1, 0.12);
+    padding: 12px 10px; display: none; margin-top: 6px;
+  }
+  #final .trophy { font-size: 42px; filter: drop-shadow(0 0 14px rgba(255, 210, 80, 0.8)); }
+  #final .big {
+    font-size: 32px; font-weight: 900;
+    background: linear-gradient(175deg, #fffbe8 5%, #ffe98a 35%, #f5b301 62%, #fff0b3 88%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  /* 公開キット：フッター・結果コピー・文字サイズ切替 */
+  footer {
+    z-index: 2; width: 100%; max-width: 540px; text-align: center;
+    font-size: 11.5px; color: #9a8a63; line-height: 1.6; margin-top: 8px;
+    padding-bottom: 30px;
+  }
+  footer .sizeToggle {
+    font-size: 12px; color: #e8cf8f; background: transparent;
+    border: 1px solid rgba(245, 197, 66, 0.5); border-radius: 8px;
+    padding: 3px 12px; margin-top: 4px; cursor: pointer; touch-action: manipulation;
+  }
+  #copyBtn {
+    display: none; z-index: 2; margin-top: 8px;
+    font-size: 15px; font-weight: bold; padding: 10px 22px; border-radius: 10px;
+    border: 2px solid #f5b301; cursor: pointer; touch-action: manipulation;
+    background: transparent; color: #ffe98a;
+  }
+  body.large #mainText { font-size: 34px; }
+  body.large #mainText.result { font-size: clamp(52px, 17vw, 84px); }
+  body.large #subText { font-size: 17.5px; }
+  body.large #roundInfo { font-size: 16px; }
+  body.large #history { font-size: 16px; }
+  body.large #bigBtn { font-size: 36px; }
+  body.large #final { font-size: 20px; }
+
+  .pop { animation: pop 0.3s ease-out; }
+  @keyframes pop {
+    0% { transform: scale(0.55); }
+    60% { transform: scale(1.14); }
+    100% { transform: scale(1); }
+  }
+  /* 背の低い画面ではさらに圧縮して、必ず1画面に収める */
+  @media (max-height: 680px) {
+    h1 { font-size: 21px; }
+    .subtitle { display: none; }
+    #bigBtn { width: min(64vw, 250px, 30dvh); height: min(64vw, 250px, 30dvh); font-size: 27px; }
+    #mainText { font-size: 26px; }
+    #mainText.result { font-size: clamp(38px, 12.5vw, 56px); }
+    #mainText.cue { font-size: clamp(36px, 11vw, 54px); }
+    .bulbs i { width: 7px; height: 7px; }
+    #final .trophy { font-size: 34px; }
+    #final .big { font-size: 27px; }
+  }
+</style>
+</head>
+<body>
+  <div class="beam left"></div>
+  <div class="beam right"></div>
+  <div id="sparkles"></div>
+  <canvas id="confetti"></canvas>
+
+  <header>
+    <h1>👑 3秒ジャストゲーム 👑</h1>
+    <div class="subtitle">JUST 3 SECONDS</div>
+  </header>
+  <div id="roundInfo">✦ 3回勝負 ✦</div>
+
+  <div class="frame">
+    <div class="bulbs" id="bulbsTop"></div>
+    <div id="stage">
+      <div id="mainText">ボタンを押して<br>スタート</div>
+      <div id="subText">「すたーと！」の合図が出たら、<br>3秒ぴったりでもう一度押してね</div>
+      <div><span id="scoreText"></span></div>
+    </div>
+    <div class="bulbs" id="bulbsBottom"></div>
+  </div>
+
+  <div class="pedestal">
+    <button id="bigBtn" type="button">スタート</button>
+    <div class="pedestalBase"></div>
+  </div>
+
+  <div id="history"></div>
+  <div id="final"></div>
+  <button id="copyBtn" type="button">📋 結果をコピーする</button>
+
+  <footer>
+    © 2026 相田樹<br>
+    このゲームはブラウザの中だけで動作します。名前の登録はなく、結果が外部に送信されることはありません。<br>
+    <button id="sizeToggle" class="sizeToggle" type="button">文字を大きくする</button>
+  </footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var TARGET = 3.0;      // 目標は3秒
+  var ROUNDS = 3;        // 3回勝負
+  var WAIT_MIN = 2000;   // 待ち時間 2.0秒〜
+  var WAIT_MAX = 5000;   //        〜5.0秒（ランダム）
+
+  // === SCORE_LOGIC_START ===
+  // 誤差（秒、1/100単位に丸め済み）→ 得点
+  function scoreFor(err) {
+    var e = Math.abs(err);
+    if (e < 0.005) return 100;
+    if (e <= 0.05 + 1e-9) return 90;
+    if (e <= 0.10 + 1e-9) return 80;
+    if (e <= 0.15 + 1e-9) return 70;
+    if (e <= 0.20 + 1e-9) return 60;
+    if (e <= 0.30 + 1e-9) return 50;
+    if (e <= 0.50 + 1e-9) return 30;
+    if (e <= 1.00 + 1e-9) return 10;
+    return 0;
+  }
+  // === SCORE_LOGIC_END ===
+
+  // === COPY_LOGIC_START ===
+  // 結果画面の「結果をコピーする」で使う文面
+  function buildResultText(list, total, totalErr) {
+    var lines = [];
+    lines.push("👑3秒ジャストゲーム👑");
+    lines.push("合計 " + total + "点 ／ 300点（誤差の合計 " + totalErr.toFixed(2) + "秒）");
+    for (var i = 0; i < list.length; i++) {
+      var x = list[i];
+      if (x.flying) lines.push((i + 1) + "回目：フライング 0点");
+      else lines.push((i + 1) + "回目：" + x.disp.toFixed(2) + "秒（" + x.score + "点）");
+    }
+    lines.push("https://itsukiaida.github.io/just-3-seconds/");
+    return lines.join("\n");
+  }
+  // === COPY_LOGIC_END ===
+
+  var mainText = document.getElementById("mainText");
+  var subText = document.getElementById("subText");
+  var scoreText = document.getElementById("scoreText");
+  var roundInfo = document.getElementById("roundInfo");
+  var historyEl = document.getElementById("history");
+  var finalEl = document.getElementById("final");
+  var btn = document.getElementById("bigBtn");
+  var copyBtn = document.getElementById("copyBtn");
+  var sizeToggle = document.getElementById("sizeToggle");
+  var lastFinalText = "";
+
+  // 状態: idle / waiting / measuring / result / toFinal / final
+  var state = "idle";
+  var round = 0;
+  var results = [];
+  var cueAt = 0;
+  var timerId = null;
+
+  // ---------- 装飾（電球・キラキラ・紙吹雪） ----------
+  (function buildDecor() {
+    var rows = [document.getElementById("bulbsTop"), document.getElementById("bulbsBottom")];
+    for (var r = 0; r < rows.length; r++) {
+      if (!rows[r]) continue;
+      for (var i = 0; i < 26; i++) rows[r].appendChild(document.createElement("i"));
+    }
+    var sp = document.getElementById("sparkles");
+    for (var j = 0; j < 16; j++) {
+      var s = document.createElement("span");
+      s.textContent = "✦";
+      s.style.left = (Math.random() * 96) + "vw";
+      s.style.top = (Math.random() * 92) + "vh";
+      s.style.fontSize = (10 + Math.random() * 14) + "px";
+      s.style.animationDuration = (2.6 + Math.random() * 3.4) + "s";
+      s.style.animationDelay = (Math.random() * 4) + "s";
+      sp.appendChild(s);
+    }
+  })();
+
+  var cvs = document.getElementById("confetti");
+  var ctx = cvs.getContext("2d");
+  var parts = [];
+  var rafId = null;
+  function sizeCanvas() { cvs.width = window.innerWidth; cvs.height = window.innerHeight; }
+  window.addEventListener("resize", sizeCanvas);
+  sizeCanvas();
+  function burst(n, goldOnly) {
+    var colors = goldOnly
+      ? ["#ffd94d", "#fff3b0", "#f5b301", "#ffffff", "#ffe98a"]
+      : ["#ffd94d", "#7ee2a8", "#ff8a7a", "#8ecbff", "#ffffff", "#f5b301"];
+    for (var i = 0; i < n; i++) {
+      parts.push({
+        x: window.innerWidth / 2 + (Math.random() - 0.5) * 240,
+        y: window.innerHeight * 0.36,
+        vx: (Math.random() - 0.5) * 9.5,
+        vy: -(Math.random() * 9 + 5),
+        g: 0.26 + Math.random() * 0.14,
+        s: 5 + Math.random() * 7,
+        r: Math.random() * Math.PI,
+        vr: (Math.random() - 0.5) * 0.3,
+        c: colors[i % colors.length],
+        life: 95 + Math.random() * 55
+      });
+    }
+    if (!rafId) tickConfetti();
+  }
+  function tickConfetti() {
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+    parts = parts.filter(function (p) { return p.life > 0 && p.y < cvs.height + 30; });
+    for (var i = 0; i < parts.length; i++) {
+      var p = parts[i];
+      p.x += p.vx; p.y += p.vy; p.vy += p.g; p.r += p.vr; p.life--;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.r);
+      ctx.fillStyle = p.c;
+      ctx.globalAlpha = Math.max(0, Math.min(1, p.life / 40));
+      ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s * 0.62);
+      ctx.restore();
+    }
+    if (parts.length) { rafId = requestAnimationFrame(tickConfetti); }
+    else { rafId = null; ctx.clearRect(0, 0, cvs.width, cvs.height); }
+  }
+
+  // ---------- 音 ----------
+  var actx = null;
+  function ensureAudio() {
+    if (!actx) {
+      try {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) actx = new AC();
+      } catch (e) { actx = null; }
+    }
+    if (actx && actx.state === "suspended") { actx.resume(); }
+  }
+  function beep(freq, startIn, dur) {
+    if (!actx) return;
+    try {
+      var t0 = actx.currentTime + startIn;
+      var osc = actx.createOscillator();
+      var gain = actx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.connect(gain);
+      gain.connect(actx.destination);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.05);
+    } catch (e) { /* 音が出なくてもゲームは続行 */ }
+  }
+  function playResultSound(score) {
+    if (score >= 100) {
+      beep(523, 0, 0.16); beep(659, 0.13, 0.16); beep(784, 0.26, 0.16); beep(1047, 0.39, 0.34);
+    } else if (score >= 80) {
+      beep(784, 0, 0.14); beep(1047, 0.12, 0.24);
+    } else if (score >= 50) {
+      beep(659, 0, 0.18);
+    } else {
+      beep(330, 0, 0.22);
+    }
+  }
+  function vibrate(pattern) {
+    if (navigator.vibrate) { try { navigator.vibrate(pattern); } catch (e) {} }
+  }
+
+  // ---------- 声 ----------
+  function speakStart() {
+    try {
+      if (!("speechSynthesis" in window)) return;
+      var u = new SpeechSynthesisUtterance("すたーと！");
+      u.lang = "ja-JP";
+      u.rate = 1.05;
+      var vs = speechSynthesis.getVoices();
+      for (var i = 0; i < vs.length; i++) {
+        if (vs[i].lang && vs[i].lang.indexOf("ja") === 0) { u.voice = vs[i]; break; }
+      }
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    } catch (e) { /* 声が出なくても表示で合図する */ }
+  }
+  if ("speechSynthesis" in window) {
+    speechSynthesis.getVoices();
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = function () { speechSynthesis.getVoices(); };
+    }
+  }
+
+  // ---------- 画面 ----------
+  function setMain(html, cls) {
+    mainText.className = "";
+    mainText.innerHTML = html;
+    if (cls) {
+      mainText.classList.add(cls);
+      mainText.classList.remove("pop");
+      void mainText.offsetWidth;
+      mainText.classList.add("pop");
+    }
+  }
+  function setScoreStamp(text) {
+    scoreText.textContent = text;
+    scoreText.className = text ? "stamp" : "";
+    if (text) {
+      scoreText.classList.remove("pop");
+      void scoreText.offsetWidth;
+      scoreText.classList.add("pop");
+    }
+  }
+  function updateRoundInfo() {
+    if (state === "idle") { roundInfo.textContent = "✦ 3回勝負 ✦"; return; }
+    var r = Math.min(round, ROUNDS);
+    roundInfo.textContent = "✦ " + r + "回目 ／ " + ROUNDS + "回 ✦";
+  }
+  function renderHistory() {
+    var parts = [];
+    for (var i = 0; i < results.length; i++) {
+      var x = results[i];
+      if (x.flying) parts.push((i + 1) + "回目：フライング 0点");
+      else parts.push((i + 1) + "回目：" + x.disp.toFixed(2) + "秒（" + x.score + "点）");
+    }
+    historyEl.textContent = parts.join("　");
+  }
+  function finalComment(total, totalErr) {
+    if (total >= 290) return "神の体内時計！⏱️✨";
+    if (total >= 260) return "プロ級の正確さ！";
+    if (total >= 220) return "かなり正確！いい感じ";
+    if (total >= 170) return "なかなかやるね";
+    if (total >= 110) return "あと少しで上達しそう";
+    return "体内時計、鍛えがいがあるね";
+  }
+
+  // ---------- ゲーム進行 ----------
+  function startRound() {
+    round += 1;
+    state = "waiting";
+    finalEl.style.display = "none";
+    copyBtn.style.display = "none";
+    setScoreStamp("");
+    setMain("まってね…", "");
+    subText.textContent = "「すたーと！」の合図を待って…";
+    btn.textContent = "まだだよ";
+    btn.className = "waiting";
+    updateRoundInfo();
+    var wait = WAIT_MIN + Math.random() * (WAIT_MAX - WAIT_MIN);
+    timerId = setTimeout(fireCue, wait);
+  }
+
+  function fireCue() {
+    timerId = null;
+    state = "measuring";
+    // 計測の起点は「合図を出したこの瞬間」にそろえる（声の端末差の影響を受けない）
+    cueAt = performance.now();
+    speakStart();
+    setMain("すたーと！", "cue");
+    subText.textContent = "心の中で「1、2、3」… ぴったりで押して！";
+    btn.textContent = "ストップ！";
+    btn.className = "stop";
+  }
+
+  function finishRoundByPress() {
+    var measured = (performance.now() - cueAt) / 1000;
+    var disp = Math.round(measured * 100) / 100;
+    var err = Math.round(Math.abs(disp - TARGET) * 100) / 100;
+    var score = scoreFor(err);
+    results.push({ disp: disp, err: err, score: score, flying: false });
+    state = "result";
+    vibrate(score >= 100 ? [60, 60, 60, 60, 120] : 50);
+    playResultSound(score);
+    burst(score >= 100 ? 170 : score >= 80 ? 90 : score >= 50 ? 40 : 14, score >= 100);
+    var sign = disp >= TARGET ? "+" : "−";
+    if (score >= 100) {
+      setMain(disp.toFixed(2) + "秒", "result");
+      subText.textContent = "ジャスト！！誤差0.00秒 🎉";
+    } else {
+      setMain(disp.toFixed(2) + "秒", "result");
+      subText.textContent = "誤差 " + sign + err.toFixed(2) + "秒" + (disp > TARGET ? "（おそい）" : "（はやい）");
+    }
+    setScoreStamp(score + "点");
+    renderHistory();
+    afterRound();
+  }
+
+  function finishRoundByFlying() {
+    if (timerId !== null) { clearTimeout(timerId); timerId = null; }
+    results.push({ disp: null, err: null, score: 0, flying: true });
+    state = "result";
+    vibrate([80, 40, 80]);
+    beep(220, 0, 0.25);
+    setMain("フライング！", "flying");
+    subText.textContent = "合図の前に押しちゃった。この回は0点";
+    setScoreStamp("0点");
+    renderHistory();
+    afterRound();
+  }
+
+  function afterRound() {
+    updateRoundInfo();
+    if (round >= ROUNDS) {
+      btn.textContent = "結果を見る";
+      btn.className = "next";
+      state = "toFinal";
+    } else {
+      btn.textContent = "つぎの回へ";
+      btn.className = "next";
+    }
+  }
+
+  function showFinal() {
+    state = "final";
+    var total = 0, totalErr = 0;
+    for (var i = 0; i < results.length; i++) {
+      total += results[i].score;
+      totalErr += results[i].flying ? 0 : results[i].err;
+    }
+    totalErr = Math.round(totalErr * 100) / 100;
+    lastFinalText = buildResultText(results, total, totalErr);
+    copyBtn.style.display = "inline-block";
+    setMain("けっか発表", "");
+    subText.textContent = "";
+    setScoreStamp("");
+    finalEl.innerHTML =
+      "<div class='trophy'>🏆</div>" +
+      "<div class='big'>" + total + "点 ／ 300点</div>" +
+      "誤差の合計：" + totalErr.toFixed(2) + "秒<br>" +
+      finalComment(total, totalErr);
+    finalEl.style.display = "block";
+    historyEl.style.display = "none";   // 結果発表中は履歴を畳んで1画面に収める
+    btn.textContent = "もう一度";
+    btn.className = "";
+    roundInfo.textContent = "✦ おつかれさま！ ✦";
+    if (total >= 220) {
+      burst(150, true);
+      setTimeout(function () { burst(120, true); }, 350);
+      vibrate([60, 60, 60, 60, 120]);
+    } else if (total >= 110) {
+      burst(60, false);
+    }
+  }
+
+  function resetAll() {
+    round = 0;
+    results = [];
+    lastFinalText = "";
+    copyBtn.style.display = "none";
+    historyEl.style.display = "";
+    renderHistory();
+    finalEl.style.display = "none";
+    setScoreStamp("");
+    setMain("ボタンを押して<br>スタート", "");
+    subText.innerHTML = "「すたーと！」の合図が出たら、<br>3秒ぴったりでもう一度押してね";
+    btn.textContent = "スタート";
+    btn.className = "";
+    state = "idle";
+    updateRoundInfo();
+  }
+
+  // ---------- 入力 ----------
+  function onPress(ev) {
+    if (ev) ev.preventDefault();
+    ensureAudio();
+    if (state === "idle" || state === "final") {
+      resetAll();
+      startRound();
+    } else if (state === "waiting") {
+      finishRoundByFlying();
+    } else if (state === "measuring") {
+      finishRoundByPress();
+    } else if (state === "result") {
+      startRound();
+    } else if (state === "toFinal") {
+      showFinal();
+    }
+  }
+  btn.addEventListener("pointerdown", onPress);
+  btn.addEventListener("click", function (ev) { ev.preventDefault(); });
+
+  // ---------- 結果コピー ----------
+  function fallbackCopy() {
+    var ta = document.createElement("textarea");
+    ta.value = lastFinalText;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+  function copyResult() {
+    if (!lastFinalText) return;
+    function done() {
+      copyBtn.textContent = "コピーしました！";
+      setTimeout(function () { copyBtn.textContent = "📋 結果をコピーする"; }, 1600);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(lastFinalText).then(done).catch(function () { fallbackCopy(); done(); });
+    } else {
+      fallbackCopy();
+      done();
+    }
+  }
+  copyBtn.addEventListener("click", function (ev) { ev.preventDefault(); copyResult(); });
+
+  // ---------- 文字サイズ切替（標準／大） ----------
+  function applyTextSize() {
+    var large = false;
+    try { large = localStorage.getItem("j3s_textsize") === "large"; } catch (e) {}
+    document.body.classList.toggle("large", large);
+    sizeToggle.textContent = large ? "文字を標準に戻す" : "文字を大きくする";
+  }
+  sizeToggle.addEventListener("click", function (ev) {
+    ev.preventDefault();
+    var large = !document.body.classList.contains("large");
+    try { localStorage.setItem("j3s_textsize", large ? "large" : "normal"); } catch (e) {}
+    applyTextSize();
+  });
+
+  document.addEventListener("keydown", function (ev) {
+    var t = ev.target;
+    // コピーボタンや文字切替ボタンの操作では、ゲーム側のキー処理をしない
+    if (t && (t.id === "copyBtn" || t.id === "sizeToggle")) return;
+    if (ev.code === "Space" || ev.code === "Enter") { onPress(ev); }
+  });
+
+  applyTextSize();
+  resetAll();
+})();
+</script>
+</body>
+</html>
